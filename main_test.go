@@ -12,7 +12,7 @@ import (
 
 func TestPing(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupRouter()
+	router := setupRouter(&App{})
 
 	req, err := http.NewRequest(http.MethodGet, "/ping", nil)
 	require.NoError(t, err)
