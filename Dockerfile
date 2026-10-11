@@ -16,6 +16,8 @@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /build/app .
 
 FROM alpine:3.22
 
+RUN apk add --no-cache ca-certificates tzdata bash
+
 WORKDIR /app
 
 COPY --from=backend-builder /build/app /app/bin/app
