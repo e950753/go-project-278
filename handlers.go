@@ -15,6 +15,7 @@ import (
 	"fmt"
 
 	"github.com/e950753/go-project-278/internal/db"
+	"github.com/go-playground/validator/v10"
 )
 
 type App struct {
@@ -23,8 +24,8 @@ type App struct {
 }
 
 type linkPayload struct {
-	OriginalURL string `json:"original_url"`
-	ShortName   string `json:"short_name"`
+	OriginalURL string `json:"original_url" binding:"required,url"`
+	ShortName   string `json:"short_name" binding:"omitempty,min=3,max=32"`
 }
 
 type linkResponse struct {
@@ -106,8 +107,7 @@ func (a *App) listLinks(c *gin.Context) {
 
 func (a *App) createLink(c *gin.Context) {
 	var p linkPayload
-	if err := c.ShouldBindJSON(&p); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+	if !bindLink(c, &p) {
 		return
 	}
 	if p.ShortName == "" {
@@ -152,8 +152,12 @@ func (a *App) updateLink(c *gin.Context) {
 		return
 	}
 	var p linkPayload
-	if err := c.ShouldBindJSON(&p); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+	if !bindLink(c, &p) {
+		return
+	}
+	if p.ShortName == "" {
+		c.JSON(http.StatusUnprocessableEntity,
+			gin.H{"errors": gin.H{"short_name": "short_name is required"}})
 		return
 	}
 	l, err := a.q.UpdateLink(c, db.UpdateLinkParams{
@@ -207,4 +211,31 @@ func parseRange(c *gin.Context) (start, end int32, ok bool, err error) {
 		return 0, 0, false, fmt.Errorf("invalid range")
 	}
 	return r[0], r[1], true, nil
+}
+
+func bindLink(c *gin.Context, p *linkPayload) bool {
+	err := c.ShouldBindJSON(p)
+	if err == nil {
+		return true
+	}
+
+	var verrs validator.ValidationErrors
+	if errors.As(err, &verrs) {
+		fields := gin.H{}
+		for _, fe := range verrs {
+			name := fe.Field()
+			switch name {
+			case "OriginalURL":
+				name = "original_url"
+			case "ShortName":
+				name = "short_name"
+			}
+			fields[name] = fe.Error()
+		}
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": fields})
+		return false
+	}
+
+	c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+	return false
 }

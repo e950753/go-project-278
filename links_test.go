@@ -258,3 +258,35 @@ func TestRedirectNotFound(t *testing.T) {
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }
+
+func TestCreateLinkValidation(t *testing.T) {
+	r := setupTestRouter(t)
+
+	w := doRequest(r, http.MethodPost, "/api/links", `{"original_url":"not-a-url"}`)
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	assert.Contains(t, w.Body.String(), `"original_url"`)
+
+	w = doRequest(r, http.MethodPost, "/api/links", `{}`)
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	assert.Contains(t, w.Body.String(), `"original_url"`)
+
+	w = doRequest(r, http.MethodPost, "/api/links",
+		`{"original_url":"https://example.com","short_name":"ab"}`)
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	assert.Contains(t, w.Body.String(), `"short_name"`)
+
+	long := strings.Repeat("a", 33)
+	w = doRequest(r, http.MethodPost, "/api/links",
+		`{"original_url":"https://example.com","short_name":"`+long+`"}`)
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+}
+
+func TestUpdateLinkValidation(t *testing.T) {
+	r := setupTestRouter(t)
+	created := createTestLink(t, r, `{"original_url":"https://example.com","short_name":"exmpl"}`)
+
+	w := doRequest(r, http.MethodPut, linkPath(created.ID),
+		`{"original_url":"bad","short_name":"exmpl"}`)
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	assert.Contains(t, w.Body.String(), `"original_url"`)
+}
