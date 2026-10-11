@@ -1,0 +1,6 @@
+.git
+bin/app
+tmp
+.env
+.DS_Store
+node_modules
