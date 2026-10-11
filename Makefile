@@ -1,7 +1,7 @@
 .PHONY: run test lint build
 
 run:
-	go run main.go
+	go run .
 
 test:
 	go test -race ./...
