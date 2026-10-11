@@ -11,6 +11,13 @@
 ## Стек
 
 - Go
+- PostgreSQL, [sqlc](https://sqlc.dev/), [goose](https://github.com/pressly/goose)
+- Caddy
+- Docker
+- Render
+- Bugsink
+- golangci-lint
+- GitHub Actions
 
 ## Установка
 
@@ -19,12 +26,32 @@
 ```bash
 git clone https://github.com/e950753/go-project-278.git
 cd go-project-278
+npm install
+```
+ 
+Создайте рабочую и тестовую базы данных:
+ 
+```bash
+createdb appdb
+createdb appdb_test
+```
+ 
+Создайте файл `.env` в корне проекта:
+
+ 
+Примените миграции:
+ 
+```bash
+set -a; source .env; set +a
+go tool goose -dir db/migrations postgres "$DATABASE_URL" up
+go tool goose -dir db/migrations postgres "$TEST_DATABASE_URL" up
 ```
 
 ## Использование
 
 <!-- Добавьте примеры запуска и запись asciinema — именно это смотрит работодатель -->
 Приложение: https://go-project-278-id1a.onrender.com
+Демо: [запись в asciinema](https://asciinema.org/a/1xM4A6M3Kxq8dORN)
 ---
 
 <details>
