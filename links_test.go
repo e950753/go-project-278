@@ -37,7 +37,7 @@ func setupTestRouter(t *testing.T) *gin.Engine {
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)
 
-	_, err = pool.Exec(ctx, "TRUNCATE links RESTART IDENTITY")
+	_, err = pool.Exec(ctx, "TRUNCATE links, link_visits RESTART IDENTITY")
 	require.NoError(t, err)
 
 	return setupRouter(&App{q: db.New(pool), baseURL: testBaseURL})
@@ -224,4 +224,37 @@ func TestListLinksInvalidRange(t *testing.T) {
 	w := doRequest(r, http.MethodGet, "/api/links?range=abc", "")
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestRedirectRecordsVisit(t *testing.T) {
+	r := setupTestRouter(t)
+	createTestLink(t, r, `{"original_url":"https://example.com","short_name":"exmpl"}`)
+
+	req := httptest.NewRequest(http.MethodGet, "/r/exmpl", nil)
+	req.Header.Set("User-Agent", "test-agent")
+	req.Header.Set("Referer", "https://ref.test")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusFound, w.Code)
+	assert.Equal(t, "https://example.com", w.Header().Get("Location"))
+
+	w = doRequest(r, http.MethodGet, "/api/link_visits", "")
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "link_visits 0-1/1", w.Header().Get("Content-Range"))
+	var visits []visitResponse
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &visits))
+	require.Len(t, visits, 1)
+	assert.Equal(t, int64(1), visits[0].LinkID)
+	assert.Equal(t, "test-agent", visits[0].UserAgent)
+	assert.Equal(t, "https://ref.test", visits[0].Referer)
+	assert.Equal(t, int32(http.StatusFound), visits[0].Status)
+}
+
+func TestRedirectNotFound(t *testing.T) {
+	r := setupTestRouter(t)
+
+	w := doRequest(r, http.MethodGet, "/r/nope", "")
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
 }

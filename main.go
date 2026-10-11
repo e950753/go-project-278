@@ -19,6 +19,7 @@ import (
 
 func setupRouter(app *App) *gin.Engine {
 	router := gin.New()
+	router.TrustedPlatform = gin.PlatformCloudflare
 	router.Use(gin.Logger(), gin.Recovery())
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:  []string{"http://localhost:5173"},
@@ -31,12 +32,17 @@ func setupRouter(app *App) *gin.Engine {
 	router.GET("/ping", func(c *gin.Context) {
 		c.String(http.StatusOK, "pong")
 	})
+	router.GET("/r/:code", app.redirect)
 
 	api := router.Group("/api")
 	api.GET("/links", app.listLinks)
-	api.POST("/links", app.createLink)
+	api.GET("/link_visits", app.listVisits)
 	api.GET("/links/:id", app.getLink)
+
+	api.POST("/links", app.createLink)
+
 	api.PUT("/links/:id", app.updateLink)
+
 	api.DELETE("/links/:id", app.deleteLink)
 
 	return router
