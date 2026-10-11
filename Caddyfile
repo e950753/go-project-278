@@ -1,6 +1,10 @@
 :80
 
+log
+
 root * /app/public
+
+respond /caddy-ping "caddy ok"
 
 @backend path /api/* /r/* /ping
 handle @backend {
