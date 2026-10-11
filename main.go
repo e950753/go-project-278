@@ -14,11 +14,18 @@ import (
 	"github.com/joho/godotenv"
 
 	"github.com/e950753/go-project-278/internal/db"
+	"github.com/gin-contrib/cors"
 )
 
 func setupRouter(app *App) *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery())
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:  []string{"http://localhost:5173"},
+		AllowMethods:  []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:  []string{"Origin", "Content-Type", "Range"},
+		ExposeHeaders: []string{"Content-Range"},
+	}))
 	router.Use(sentrygin.New(sentrygin.Options{Repanic: true}))
 
 	router.GET("/ping", func(c *gin.Context) {
