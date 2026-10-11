@@ -9,6 +9,17 @@ import (
 	"context"
 )
 
+const countLinks = `-- name: CountLinks :one
+SELECT count(*) FROM links
+`
+
+func (q *Queries) CountLinks(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countLinks)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createLink = `-- name: CreateLink :one
 INSERT INTO links (original_url, short_name) VALUES ($1, $2) RETURNING id, original_url, short_name, created_at
 `
@@ -58,12 +69,17 @@ func (q *Queries) GetLink(ctx context.Context, id int64) (Link, error) {
 	return i, err
 }
 
-const listLinks = `-- name: ListLinks :many
-SELECT id, original_url, short_name, created_at FROM links ORDER BY id
+const listLinksPaged = `-- name: ListLinksPaged :many
+SELECT id, original_url, short_name, created_at FROM links ORDER BY id LIMIT $1 OFFSET $2
 `
 
-func (q *Queries) ListLinks(ctx context.Context) ([]Link, error) {
-	rows, err := q.db.Query(ctx, listLinks)
+type ListLinksPagedParams struct {
+	Limit  int32
+	Offset int32
+}
+
+func (q *Queries) ListLinksPaged(ctx context.Context, arg ListLinksPagedParams) ([]Link, error) {
+	rows, err := q.db.Query(ctx, listLinksPaged, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}

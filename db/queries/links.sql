@@ -4,8 +4,11 @@ INSERT INTO links (original_url, short_name) VALUES ($1, $2) RETURNING *;
 -- name: GetLink :one
 SELECT * FROM links WHERE id = $1;
 
--- name: ListLinks :many
-SELECT * FROM links ORDER BY id;
+-- name: ListLinksPaged :many
+SELECT * FROM links ORDER BY id LIMIT $1 OFFSET $2;
+
+-- name: CountLinks :one
+SELECT count(*) FROM links;
 
 -- name: UpdateLink :one
 UPDATE links SET original_url = $2, short_name = $3 WHERE id = $1 RETURNING *;

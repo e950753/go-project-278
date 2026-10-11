@@ -11,6 +11,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"encoding/json"
+	"fmt"
+
 	"github.com/e950753/go-project-278/internal/db"
 )
 
@@ -66,15 +69,38 @@ func parseID(c *gin.Context) (int64, bool) {
 }
 
 func (a *App) listLinks(c *gin.Context) {
-	links, err := a.q.ListLinks(c)
+	total, err := a.q.CountLinks(c)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 		return
 	}
+
+	start, end, paged, err := parseRange(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+	if !paged {
+		start, end = 0, int32(total)
+		if end == 0 {
+			end = 1
+		}
+	}
+
+	links, err := a.q.ListLinksPaged(c, db.ListLinksPagedParams{
+		Limit:  end - start,
+		Offset: start,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return
+	}
+
 	resp := make([]linkResponse, 0, len(links))
 	for _, l := range links {
 		resp = append(resp, a.toResponse(l))
 	}
+	c.Header("Content-Range", fmt.Sprintf("links %d-%d/%d", start, end, total))
 	c.JSON(http.StatusOK, resp)
 }
 
@@ -166,4 +192,19 @@ func (a *App) deleteLink(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+func parseRange(c *gin.Context) (start, end int32, ok bool, err error) {
+	raw := c.Query("range")
+	if raw == "" {
+		return 0, 0, false, nil
+	}
+	var r []int32
+	if err := json.Unmarshal([]byte(raw), &r); err != nil || len(r) != 2 {
+		return 0, 0, false, fmt.Errorf("invalid range")
+	}
+	if r[0] < 0 || r[1] <= r[0] {
+		return 0, 0, false, fmt.Errorf("invalid range")
+	}
+	return r[0], r[1], true, nil
 }

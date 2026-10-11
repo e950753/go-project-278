@@ -197,3 +197,31 @@ func TestDeleteLinkNotFound(t *testing.T) {
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }
+
+func TestListLinksPagination(t *testing.T) {
+	r := setupTestRouter(t)
+	for i := 0; i < 7; i++ {
+		createTestLink(t, r, `{"original_url":"https://example.com","short_name":"link`+strconv.Itoa(i)+`"}`)
+	}
+
+	w := doRequest(r, http.MethodGet, "/api/links?range=[0,5]", "")
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "links 0-5/7", w.Header().Get("Content-Range"))
+	var page []linkResponse
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &page))
+	assert.Len(t, page, 5)
+
+	w = doRequest(r, http.MethodGet, "/api/links?range=[5,10]", "")
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "links 5-10/7", w.Header().Get("Content-Range"))
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &page))
+	assert.Len(t, page, 2)
+}
+
+func TestListLinksInvalidRange(t *testing.T) {
+	r := setupTestRouter(t)
+
+	w := doRequest(r, http.MethodGet, "/api/links?range=abc", "")
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
