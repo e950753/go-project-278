@@ -1,17 +1,3 @@
 :80
 
-log
-
-root * /app/public
-
-respond /caddy-ping "caddy ok"
-
-@backend path /api/* /r/* /ping
-handle @backend {
-    reverse_proxy localhost:8080
-}
-
-handle {
-    try_files {path} /index.html
-    file_server
-}
+respond "caddy ok" 200
